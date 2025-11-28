@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI Vision Lens</title>
+
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AI Vision">
+    <!-- Specific Icon for iPhone Home Screen -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3616/3616927.png">
+    
+    <!-- Android PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- TensorFlow.js and MobileNet -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0"></script>
+
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
+            color: white;
+            overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Safe Area Utilities */
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* Scanning Animation */
+        .scanner-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #3b82f6;
+            box-shadow: 0 0 4px #3b82f6, 0 0 10px #60a5fa;
+            animation: scan 2s linear infinite;
+            top: 0;
+            z-index: 10;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.9);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gemini-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Markdown Styles */
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem; margin-top: 1rem;
+        }
+        .markdown-content p { margin-bottom: 0.5rem; color: #e2e8f0; font-size: 0.95rem; line-height: 1.6; }
+        .markdown-content ul { list-style-type: disc; padding-left: 1.2rem; margin-bottom: 0.5rem; color: #cbd5e1; }
+        .markdown-content strong { color: #fff; font-weight: 600; }
+        
+        /* Toggle Switch */
+        .mode-switch {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(4px);
+            border-radius: 999px;
+            padding: 4px;
+            display: flex;
+            position: relative;
+        }
+        .mode-btn {
+            padding: 6px 16px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            z-index: 2;
+            transition: color 0.3s;
+        }
+        .mode-indicator {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            background: #3b82f6;
+            border-radius: 999px;
+            transition: left 0.3s ease, width 0.3s ease;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Use h-[100dvh] for iOS Dynamic Viewport Height to avoid address bar issues -->
+    <div id="root" class="h-[100dvh] w-full flex flex-col relative"></div>
+
+    <script>
+        // Inject Dynamic Manifest for Android "Add to Home Screen"
+        const manifest = {
+            "name": "AI Vision Lens",
+            "short_name": "AI Vision",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#000000",
+            "theme_color": "#000000",
+            "orientation": "portrait",
+            "icons": [
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/3616/3616927.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://cdn-icons-png.flaticon.com/512/3616/3616927.png",
+                    "sizes": "512x512",
+                    "type": "image/png"
+                }
+            ]
+        };
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestURL;
+        document.head.appendChild(link);
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const apiKey = ""; // API Key injected by environment
+
+        // Icons
+        const IconWrapper = ({ children, size = 24, className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+        const Cpu = (props) => (<IconWrapper {...props}><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></IconWrapper>);
+        const Scan = (props) => (<IconWrapper {...props}><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path></IconWrapper>);
+        const X = (props) => (<IconWrapper {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconWrapper>);
+        const Upload = (props) => (<IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></IconWrapper>);
+        const RefreshCw = (props) => (<IconWrapper {...props}><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></IconWrapper>);
+        const Sparkles = (props) => (<IconWrapper {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z"/></IconWrapper>);
+        const BrainCircuit = (props) => (<IconWrapper {...props}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-1.4 4.5 4.5 0 0 1-3 1.4"/><path d="M12 18v2.2"/><path d="M12 22a5 5 0 0 0 5-5"/><path d="M12 22a5 5 0 0 1-5-5"/><path d="M12 13.5a4.5 4.5 0 0 0-4.5 4.5"/><path d="M12 13.5a4.5 4.5 0 0 1 4.5 4.5"/><path d="M12 18v-4.5"/></IconWrapper>);
+        const Type = (props) => (<IconWrapper {...props}><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></IconWrapper>);
+        const BoxSelect = (props) => (<IconWrapper {...props}><path d="M5 3a2 2 0 0 0-2 2"></path><path d="M19 3a2 2 0 0 1 2 2"></path><path d="M21 19a2 2 0 0 1-2 2"></path><path d="M5 21a2 2 0 0 1-2-2"></path><path d="M9 3h1"></path><path d="M9 21h1"></path><path d="M14 3h1"></path><path d="M14 21h1"></path><path d="M3 9v1"></path><path d="M21 9v1"></path><path d="M3 14v1"></path><path d="M21 14v1"></path></IconWrapper>);
+        const AlertTriangle = (props) => (<IconWrapper {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconWrapper>);
+
+        // --- Gemini Service ---
+        const fetchGeminiInsight = async (input, mode) => {
+            let systemPrompt = "";
+            let userContent = "";
+
+            if (mode === 'object') {
+                systemPrompt = `You are a futuristic AI assistant integrated into a visual scanner. 
+                The user has scanned an object identified as "${input}".
+                Provide a response in Markdown format with the following sections (use H3 headers '###'):
+                1. **Identification**: A witty, 1-sentence confirmation of what it is.
+                2. **Deep Analysis**: 2-3 fascinating facts or scientific properties of this object.
+                3. **Utility**: One creative, unconventional way to use this object.
+                Keep the tone helpful, slightly robotic but friendly, and concise.`;
+                userContent = `Analyze this object: ${input}`;
+            } else {
+                systemPrompt = `You are an intelligent OCR assistant. The user has scanned the following text.
+                Provide a helpful response in Markdown format with the following sections (use H3 headers '###'):
+                1. **Summary**: A one-sentence summary of what this text is about.
+                2. **Key Points**: Extract names, dates, amounts, or key instructions as bullet points.
+                3. **Action**: Suggest what the user should do with this information (e.g., "Add to calendar", "Search for...").
+                
+                If the text is gibberish or too short, politely ask the user to rescan.`;
+                userContent = `Analyze this extracted text: "${input}"`;
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: userContent }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            // Exponential backoff
+            const delays = [1000, 2000, 4000];
+            
+            for (let i = 0; i < delays.length; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    return data.candidates[0].content.parts[0].text;
+                } catch (error) {
+                    if (i === delays.length - 1) throw error;
+                    await new Promise(r => setTimeout(r, delays[i]));
+                }
+            }
+        };
+
+        const App = () => {
+            const [model, setModel] = useState(null);
+            const [modelLoading, setModelLoading] = useState(true);
+            const [imageURL, setImageURL] = useState(null);
+            const [cameraError, setCameraError] = useState(null);
+            
+            // App Mode
+            const [mode, setMode] = useState('object'); // 'object' | 'text'
+
+            // Results
+            const [predictions, setPredictions] = useState([]);
+            const [ocrResult, setOcrResult] = useState('');
+            const [ocrProgress, setOcrProgress] = useState(0);
+
+            // State
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
+            const [view, setView] = useState('camera'); // 'camera' | 'result'
+            const [detailsOpen, setDetailsOpen] = useState(false);
+            
+            // Gemini State
+            const [geminiInsight, setGeminiInsight] = useState(null);
+            const [geminiLoading, setGeminiLoading] = useState(false);
+            const [geminiError, setGeminiError] = useState(null);
+            
+            const videoRef = useRef(null);
+            const canvasRef = useRef(null);
+            const fileInputRef = useRef(null);
+            const imgRef = useRef(null);
+
+            // --- 1. Load MobileNet ---
+            useEffect(() => {
+                const loadModel = async () => {
+                    try {
+                        const loadedModel = await mobilenet.load();
+                        setModel(loadedModel);
+                        setModelLoading(false);
+                    } catch (error) {
+                        console.error("Failed to load model", error);
+                    }
+                };
+                loadModel();
+            }, []);
+
+            // --- 2. Camera Logic ---
+            const startCamera = async () => {
+                setImageURL(null);
+                setPredictions([]);
+                setOcrResult('');
+                setGeminiInsight(null);
+                setGeminiError(null);
+                setCameraError(null);
+                setView('camera');
+                
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { 
+                                facingMode: 'environment',
+                                // iOS Safari prefers exact resolution matches or none
+                                width: { ideal: 1280 },
+                                height: { ideal: 720 }
+                            } 
+                        });
+                        if (videoRef.current) {
+                            videoRef.current.srcObject = stream;
+                        }
+                    } catch (err) {
+                        console.error("Camera Error:", err);
+                        setCameraError("Camera access denied. Check iOS Settings > Safari > Camera.");
+                    }
+                } else {
+                    setCameraError("Camera API not supported in this browser.");
+                }
+            };
+
+            useEffect(() => {
+                if (!modelLoading && view === 'camera') startCamera();
+                return () => {
+                    if (videoRef.current && videoRef.current.srcObject) {
+                        videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+                    }
+                };
+            }, [modelLoading, view]);
+
+            // --- 3. Analysis Logic (Object or Text) ---
+            const analyzeImage = async (imgElement) => {
+                setIsAnalyzing(true);
+                setPredictions([]);
+                setOcrResult('');
+                
+                // artificial delay for UI feel
+                await new Promise(r => setTimeout(r, 800));
+
+                if (mode === 'object') {
+                    if (!model) return;
+                    try {
+                        const results = await model.classify(imgElement);
+                        setPredictions(results);
+                        setIsAnalyzing(false);
+                        setDetailsOpen(true);
+                    } catch (error) {
+                        console.error(error);
+                        setIsAnalyzing(false);
+                    }
+                } else if (mode === 'text') {
+                    try {
+                        const { data: { text } } = await Tesseract.recognize(
+                            imgElement,
+                            'eng',
+                            { logger: m => {
+                                if (m.status === 'recognizing text') {
+                                    setOcrProgress(m.progress);
+                                }
+                            }}
+                        );
+                        setOcrResult(text.trim());
+                        setIsAnalyzing(false);
+                        setDetailsOpen(true);
+                    } catch (error) {
+                        console.error("OCR Error", error);
+                        setOcrResult("Error reading text. Please try again.");
+                        setIsAnalyzing(false);
+                    }
+                }
+            };
+
+            const capture = () => {
+                if (videoRef.current) {
+                    const canvas = canvasRef.current;
+                    canvas.width = videoRef.current.videoWidth;
+                    canvas.height = videoRef.current.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(videoRef.current, 0, 0);
+                    setImageURL(canvas.toDataURL('image/jpeg'));
+                    setView('result');
+                }
+            };
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setImageURL(URL.createObjectURL(file));
+                    setView('result');
+                }
+            };
+
+            // Trigger detection on result view
+            useEffect(() => {
+                if (view === 'result' && imgRef.current) {
+                    if (imgRef.current.complete) analyzeImage(imgRef.current);
+                    else imgRef.current.onload = () => analyzeImage(imgRef.current);
+                }
+            }, [view, imageURL]);
+
+            // --- 4. Gemini Trigger ---
+            const triggerGemini = async () => {
+                const hasObject = mode === 'object' && predictions.length > 0;
+                const hasText = mode === 'text' && ocrResult.length > 0;
+
+                if (!hasObject && !hasText) return;
+                
+                setGeminiLoading(true);
+                setGeminiError(null);
+                
+                try {
+                    let input = "";
+                    if (mode === 'object') input = predictions[0].className;
+                    else input = ocrResult;
+
+                    const insight = await fetchGeminiInsight(input, mode);
+                    setGeminiInsight(insight);
+                } catch (err) {
+                    setGeminiError("Connection to AI Core failed. Try again.");
+                } finally {
+                    setGeminiLoading(false);
+                }
+            };
+
+            // --- Render ---
+
+            if (modelLoading) {
+                return (
+                    <div className="h-full w-full flex flex-col items-center justify-center bg-black text-blue-500">
+                        <div className="pulse-ring rounded-full p-8 mb-6">
+                            <Cpu size={64} />
+                        </div>
+                        <h2 className="text-xl font-bold text-white tracking-widest">NEURAL ENGINE</h2>
+                        <p className="text-sm text-gray-500 mt-2">Initializing System...</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="h-full w-full bg-black flex flex-col relative overflow-hidden">
+                    {/* Header - Safe Area Top added for Notch */}
+                    <div className="absolute top-0 left-0 right-0 z-20 pt-safe p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
+                        <div className="flex items-center gap-2 mt-2">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                                <Scan size={18} className="text-white" />
+                            </div>
+                            <span className="font-bold text-lg tracking-tight">AI Vision</span>
+                        </div>
+                        
+                        {/* Mode Switcher in Header */}
+                        {view === 'camera' && (
+                            <div className="mode-switch mt-2">
+                                <div 
+                                    className="mode-indicator" 
+                                    style={{
+                                        left: mode === 'object' ? '4px' : 'calc(50% + 2px)', 
+                                        width: 'calc(50% - 6px)'
+                                    }}
+                                ></div>
+                                <button 
+                                    onClick={() => setMode('object')}
+                                    className={`mode-btn relative ${mode === 'object' ? 'text-white' : 'text-gray-400'}`}
+                                >
+                                    Object
+                                </button>
+                                <button 
+                                    onClick={() => setMode('text')}
+                                    className={`mode-btn relative ${mode === 'text' ? 'text-white' : 'text-gray-400'}`}
+                                >
+                                    Text
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Main View */}
+                    <div className="flex-1 relative bg-gray-900 flex items-center justify-center overflow-hidden">
+                        <canvas ref={canvasRef} className="hidden"></canvas>
+
+                        {view === 'camera' && (
+                            <div className="relative w-full h-full bg-black">
+                                {!cameraError ? (
+                                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover"></video>
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
+                                        <div className="w-16 h-16 bg-red-900/50 rounded-full flex items-center justify-center mb-4">
+                                            <AlertTriangle size={32} className="text-red-500" />
+                                        </div>
+                                        <h3 className="text-white font-bold mb-2">Camera Access Error</h3>
+                                        <p className="text-gray-400 text-sm">{cameraError}</p>
+                                        <button onClick={() => fileInputRef.current.click()} className="mt-6 px-6 py-2 bg-blue-600 rounded-full font-medium text-sm">
+                                            Use File Upload Instead
+                                        </button>
+                                    </div>
+                                )}
+                                
+                                {/* Camera Overlay */}
+                                {!cameraError && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className={`transition-all duration-300 border border-white/30 rounded-3xl relative ${mode === 'text' ? 'w-72 h-40' : 'w-64 h-64'}`}>
+                                            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1 rounded-tl-lg"></div>
+                                            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1 rounded-tr-lg"></div>
+                                            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1 rounded-bl-lg"></div>
+                                            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1 rounded-br-lg"></div>
+                                            
+                                            {mode === 'text' && (
+                                                <div className="absolute -top-8 left-0 right-0 text-center text-xs font-mono text-blue-300 bg-black/50 py-1 rounded-full">
+                                                    OCR MODE ACTIVE
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {!cameraError && (
+                                    <div className="absolute bottom-32 w-full text-center text-white/70 text-sm font-medium">
+                                        {mode === 'object' ? 'Align object within frame' : 'Align text within box'}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {view === 'result' && imageURL && (
+                            <div className="relative w-full h-full bg-black">
+                                <img ref={imgRef} src={imageURL} className="w-full h-full object-cover opacity-60" alt="Captured" />
+                                
+                                {isAnalyzing && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/40 backdrop-blur-sm">
+                                        <div className="scanner-line"></div>
+                                        <div className="text-blue-400 font-mono text-xl tracking-widest animate-pulse mb-2">
+                                            {mode === 'text' ? 'READING TEXT' : 'IDENTIFYING'}
+                                        </div>
+                                        {mode === 'text' && (
+                                            <div className="w-48 h-1 bg-gray-700 rounded-full mt-2 overflow-hidden">
+                                                <div className="h-full bg-blue-500 transition-all duration-100" style={{width: `${ocrProgress * 100}%`}}></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {!isAnalyzing && (
+                                    <button onClick={startCamera} className="absolute top-24 left-4 z-30 p-2 bg-black/50 rounded-full backdrop-blur text-white">
+                                        <X size={24} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Controls / Analysis Sheet - Safe Area Bottom added for Home Bar */}
+                    <div className={`fixed bottom-0 left-0 right-0 z-30 transition-all duration-500 pb-safe`}>
+                        {view === 'camera' && (
+                            <div className="pb-8 pt-6 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center gap-6">
+                                <div className="flex items-center gap-12">
+                                    <button onClick={() => fileInputRef.current.click()} className="p-4 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition">
+                                        <Upload size={24} className="text-white" />
+                                    </button>
+                                    <button onClick={capture} disabled={!!cameraError} className={`w-20 h-20 rounded-full border-4 border-white flex items-center justify-center group ${!!cameraError ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        <div className="w-16 h-16 bg-white rounded-full group-active:scale-90 transition"></div>
+                                    </button>
+                                    <button onClick={startCamera} className="p-4 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition">
+                                        <RefreshCw size={24} className="text-white" />
+                                    </button>
+                                </div>
+                                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+                            </div>
+                        )}
+
+                        {view === 'result' && !isAnalyzing && (predictions.length > 0 || ocrResult) && (
+                            <div className={`glass-panel rounded-t-3xl flex flex-col transition-all duration-500 ${detailsOpen ? 'max-h-[85vh]' : 'max-h-[60vh]'}`}>
+                                <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setDetailsOpen(!detailsOpen)}>
+                                    <div className="w-12 h-1.5 bg-gray-600 rounded-full"></div>
+                                </div>
+
+                                {/* Header Section */}
+                                <div className="px-6 py-4 flex justify-between items-start">
+                                    <div>
+                                        <div className="text-blue-400 text-xs font-bold tracking-wider uppercase mb-1">
+                                            {mode === 'object' ? 'Detected Object' : 'Extracted Text'}
+                                        </div>
+                                        {mode === 'object' ? (
+                                            <>
+                                                <h1 className="text-3xl font-bold text-white capitalize">{predictions[0].className.split(',')[0]}</h1>
+                                                <p className="text-gray-400 text-sm mt-1">{predictions[0].className}</p>
+                                            </>
+                                        ) : (
+                                            <h1 className="text-2xl font-bold text-white">Text Found</h1>
+                                        )}
+                                    </div>
+                                    {mode === 'object' && (
+                                        <div className="text-right">
+                                            <span className="text-3xl font-mono font-bold text-green-400">{Math.round(predictions[0].probability * 100)}%</span>
+                                            <div className="text-xs text-gray-500 uppercase">Match</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Content Body */}
+                                <div className="px-6 pb-8 overflow-y-auto no-scrollbar">
+                                    
+                                    {/* OCR Result Box */}
+                                    {mode === 'text' && (
+                                        <div className="mb-6 bg-white/5 p-4 rounded-xl border border-white/10 font-mono text-sm text-gray-300 leading-relaxed max-h-40 overflow-y-auto">
+                                            {ocrResult || "No legible text detected."}
+                                        </div>
+                                    )}
+
+                                    {/* Action Chips */}
+                                    <div className="flex gap-3 mb-6 overflow-x-auto py-2 no-scrollbar">
+                                        <button 
+                                            onClick={triggerGemini}
+                                            disabled={geminiLoading}
+                                            className={`flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all shadow-lg shadow-purple-900/50
+                                                ${geminiLoading 
+                                                    ? 'bg-gray-800 text-gray-400 cursor-not-allowed' 
+                                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:scale-105 active:scale-95'
+                                                }`}
+                                        >
+                                            {geminiLoading ? (
+                                                <RefreshCw size={16} className="animate-spin" />
+                                            ) : (
+                                                <Sparkles size={16} />
+                                            )}
+                                            {geminiLoading ? 'Processing...' : (mode === 'object' ? '✨ Ask Gemini' : '✨ Summarize Text')}
+                                        </button>
+                                    </div>
+
+                                    {/* Gemini Result Card */}
+                                    {geminiInsight && (
+                                        <div className="mb-6 gemini-card p-5 rounded-2xl animate-fade-in relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-2 opacity-10">
+                                                <BrainCircuit size={64} className="text-blue-400" />
+                                            </div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Sparkles size={16} className="text-purple-400" />
+                                                <span className="text-xs font-bold tracking-widest text-purple-400 uppercase">Gemini Intelligence</span>
+                                            </div>
+                                            <div 
+                                                className="markdown-content text-sm text-gray-300"
+                                                dangerouslySetInnerHTML={{ __html: marked.parse(geminiInsight) }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {geminiError && (
+                                        <div className="mb-6 p-4 rounded-xl bg-red-900/20 border border-red-500/30 text-red-200 text-sm">
+                                            {geminiError}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
