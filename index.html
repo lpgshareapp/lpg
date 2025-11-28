@@ -172,40 +172,60 @@
         const X = (props) => (<IconWrapper {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconWrapper>);
         const Upload = (props) => (<IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></IconWrapper>);
         const RefreshCw = (props) => (<IconWrapper {...props}><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></IconWrapper>);
-        const Sparkles = (props) => (<IconWrapper {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L12 3Z"/></IconWrapper>);
+        const Sparkles = (props) => (<IconWrapper {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></IconWrapper>);
         const BrainCircuit = (props) => (<IconWrapper {...props}><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-1.4 4.5 4.5 0 0 1-3 1.4"/><path d="M12 18v2.2"/><path d="M12 22a5 5 0 0 0 5-5"/><path d="M12 22a5 5 0 0 1-5-5"/><path d="M12 13.5a4.5 4.5 0 0 0-4.5 4.5"/><path d="M12 13.5a4.5 4.5 0 0 1 4.5 4.5"/><path d="M12 18v-4.5"/></IconWrapper>);
         const Type = (props) => (<IconWrapper {...props}><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></IconWrapper>);
         const BoxSelect = (props) => (<IconWrapper {...props}><path d="M5 3a2 2 0 0 0-2 2"></path><path d="M19 3a2 2 0 0 1 2 2"></path><path d="M21 19a2 2 0 0 1-2 2"></path><path d="M5 21a2 2 0 0 1-2-2"></path><path d="M9 3h1"></path><path d="M9 21h1"></path><path d="M14 3h1"></path><path d="M14 21h1"></path><path d="M3 9v1"></path><path d="M21 9v1"></path><path d="M3 14v1"></path><path d="M21 14v1"></path></IconWrapper>);
         const AlertTriangle = (props) => (<IconWrapper {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconWrapper>);
 
-        // --- Gemini Service ---
-        const fetchGeminiInsight = async (input, mode) => {
+        // --- Gemini Service (Enhanced with Vision) ---
+        const fetchGeminiInsight = async (imageBase64, mode) => {
             let systemPrompt = "";
-            let userContent = "";
+            let userPrompt = "";
 
             if (mode === 'object') {
-                systemPrompt = `You are a futuristic AI assistant integrated into a visual scanner. 
-                The user has scanned an object identified as "${input}".
+                systemPrompt = `You are a state-of-the-art AI Vision Assistant.
+                The user has uploaded an image of an object.
+                Ignore any previous classifications. LOOK at the image and identify the object yourself with high accuracy.
+                
                 Provide a response in Markdown format with the following sections (use H3 headers '###'):
-                1. **Identification**: A witty, 1-sentence confirmation of what it is.
-                2. **Deep Analysis**: 2-3 fascinating facts or scientific properties of this object.
-                3. **Utility**: One creative, unconventional way to use this object.
+                1. **Identification**: Identify exactly what the object is (be specific, e.g. "Logitech MX Master 3 Mouse" instead of just "Mouse").
+                2. **Deep Analysis**: 2-3 fascinating facts, scientific properties, or historical context about this specific item.
+                3. **Utility**: A creative or practical tip for using it.
+                
                 Keep the tone helpful, slightly robotic but friendly, and concise.`;
-                userContent = `Analyze this object: ${input}`;
+                userPrompt = "Analyze this image and identify the object.";
             } else {
-                systemPrompt = `You are an intelligent OCR assistant. The user has scanned the following text.
+                systemPrompt = `You are an intelligent OCR and Text Analysis Assistant.
+                The user has uploaded an image containing text.
+                Read the text in the image accurately, even if it is handwritten or stylized.
+                
                 Provide a helpful response in Markdown format with the following sections (use H3 headers '###'):
                 1. **Summary**: A one-sentence summary of what this text is about.
                 2. **Key Points**: Extract names, dates, amounts, or key instructions as bullet points.
-                3. **Action**: Suggest what the user should do with this information (e.g., "Add to calendar", "Search for...").
+                3. **Action**: Suggest what the user should do with this information.
                 
-                If the text is gibberish or too short, politely ask the user to rescan.`;
-                userContent = `Analyze this extracted text: "${input}"`;
+                If the text is unreadable, polite ask to rescan.`;
+                userPrompt = "Read and analyze the text in this image.";
             }
 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            // Clean base64 string (remove data:image/jpeg;base64, prefix)
+            const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+
             const payload = {
-                contents: [{ parts: [{ text: userContent }] }],
+                contents: [{ 
+                    parts: [
+                        { text: userPrompt },
+                        { 
+                            inlineData: {
+                                mimeType: "image/jpeg",
+                                data: cleanBase64
+                            }
+                        }
+                    ] 
+                }],
                 systemInstruction: { parts: [{ text: systemPrompt }] }
             };
 
@@ -258,7 +278,7 @@
             const fileInputRef = useRef(null);
             const imgRef = useRef(null);
 
-            // --- 1. Load MobileNet ---
+            // --- 1. Load MobileNet (Keep for offline preview) ---
             useEffect(() => {
                 const loadModel = async () => {
                     try {
@@ -287,7 +307,6 @@
                         const stream = await navigator.mediaDevices.getUserMedia({ 
                             video: { 
                                 facingMode: 'environment',
-                                // iOS Safari prefers exact resolution matches or none
                                 width: { ideal: 1280 },
                                 height: { ideal: 720 }
                             } 
@@ -313,7 +332,7 @@
                 };
             }, [modelLoading, view]);
 
-            // --- 3. Analysis Logic (Object or Text) ---
+            // --- 3. Analysis Logic (Client Side Preview) ---
             const analyzeImage = async (imgElement) => {
                 setIsAnalyzing(true);
                 setPredictions([]);
@@ -325,6 +344,8 @@
                 if (mode === 'object') {
                     if (!model) return;
                     try {
+                        // We still use MobileNet for the immediate "Offline" guess
+                        // This gives instant feedback while Gemini loads
                         const results = await model.classify(imgElement);
                         setPredictions(results);
                         setIsAnalyzing(false);
@@ -362,7 +383,8 @@
                     canvas.height = videoRef.current.videoHeight;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(videoRef.current, 0, 0);
-                    setImageURL(canvas.toDataURL('image/jpeg'));
+                    const url = canvas.toDataURL('image/jpeg', 0.8); // slight compression for speed
+                    setImageURL(url);
                     setView('result');
                 }
             };
@@ -370,8 +392,13 @@
             const handleFileUpload = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    setImageURL(URL.createObjectURL(file));
-                    setView('result');
+                    // Convert file to base64 for Gemini
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setImageURL(reader.result);
+                        setView('result');
+                    };
+                    reader.readAsDataURL(file);
                 }
             };
 
@@ -383,24 +410,21 @@
                 }
             }, [view, imageURL]);
 
-            // --- 4. Gemini Trigger ---
+            // --- 4. Gemini Trigger (Enhanced Vision) ---
             const triggerGemini = async () => {
-                const hasObject = mode === 'object' && predictions.length > 0;
-                const hasText = mode === 'text' && ocrResult.length > 0;
-
-                if (!hasObject && !hasText) return;
+                // Now we don't care about MobileNet predictions for this step
+                // We send the RAW IMAGE to Gemini
+                
+                if (!imageURL) return;
                 
                 setGeminiLoading(true);
                 setGeminiError(null);
                 
                 try {
-                    let input = "";
-                    if (mode === 'object') input = predictions[0].className;
-                    else input = ocrResult;
-
-                    const insight = await fetchGeminiInsight(input, mode);
+                    const insight = await fetchGeminiInsight(imageURL, mode);
                     setGeminiInsight(insight);
                 } catch (err) {
+                    console.error(err);
                     setGeminiError("Connection to AI Core failed. Try again.");
                 } finally {
                     setGeminiLoading(false);
@@ -549,31 +573,33 @@
                             </div>
                         )}
 
-                        {view === 'result' && !isAnalyzing && (predictions.length > 0 || ocrResult) && (
+                        {view === 'result' && !isAnalyzing && (
                             <div className={`glass-panel rounded-t-3xl flex flex-col transition-all duration-500 ${detailsOpen ? 'max-h-[85vh]' : 'max-h-[60vh]'}`}>
                                 <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setDetailsOpen(!detailsOpen)}>
                                     <div className="w-12 h-1.5 bg-gray-600 rounded-full"></div>
                                 </div>
 
-                                {/* Header Section */}
+                                {/* Header Section - Offline Preview */}
                                 <div className="px-6 py-4 flex justify-between items-start">
                                     <div>
                                         <div className="text-blue-400 text-xs font-bold tracking-wider uppercase mb-1">
-                                            {mode === 'object' ? 'Detected Object' : 'Extracted Text'}
+                                            {mode === 'object' ? 'Rapid Detection (Preview)' : 'Extracted Text'}
                                         </div>
-                                        {mode === 'object' ? (
+                                        {mode === 'object' && predictions.length > 0 ? (
                                             <>
-                                                <h1 className="text-3xl font-bold text-white capitalize">{predictions[0].className.split(',')[0]}</h1>
+                                                <h1 className="text-3xl font-bold text-white capitalize truncate max-w-[250px]">{predictions[0].className.split(',')[0]}</h1>
                                                 <p className="text-gray-400 text-sm mt-1">{predictions[0].className}</p>
                                             </>
-                                        ) : (
+                                        ) : mode === 'text' ? (
                                             <h1 className="text-2xl font-bold text-white">Text Found</h1>
+                                        ) : (
+                                            <h1 className="text-xl font-bold text-gray-400">Analysis Ready</h1>
                                         )}
                                     </div>
-                                    {mode === 'object' && (
+                                    {mode === 'object' && predictions.length > 0 && (
                                         <div className="text-right">
                                             <span className="text-3xl font-mono font-bold text-green-400">{Math.round(predictions[0].probability * 100)}%</span>
-                                            <div className="text-xs text-gray-500 uppercase">Match</div>
+                                            <div className="text-xs text-gray-500 uppercase">Confidence</div>
                                         </div>
                                     )}
                                 </div>
@@ -604,7 +630,7 @@
                                             ) : (
                                                 <Sparkles size={16} />
                                             )}
-                                            {geminiLoading ? 'Processing...' : (mode === 'object' ? '✨ Ask Gemini' : '✨ Summarize Text')}
+                                            {geminiLoading ? 'Analyzing Image...' : (mode === 'object' ? '✨ Enhance with Gemini' : '✨ Summarize Text')}
                                         </button>
                                     </div>
 
@@ -616,7 +642,7 @@
                                             </div>
                                             <div className="flex items-center gap-2 mb-3">
                                                 <Sparkles size={16} className="text-purple-400" />
-                                                <span className="text-xs font-bold tracking-widest text-purple-400 uppercase">Gemini Intelligence</span>
+                                                <span className="text-xs font-bold tracking-widest text-purple-400 uppercase">Gemini Vision Intelligence</span>
                                             </div>
                                             <div 
                                                 className="markdown-content text-sm text-gray-300"
